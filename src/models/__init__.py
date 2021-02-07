@@ -1,3 +1,4 @@
+import bcrypt
 from gino.ext.sanic import Gino
 
 db = Gino()
@@ -31,3 +32,17 @@ class ContractOracle(db.Model):  # type: ignore
     @property
     def serialize(self):
         return {"id": self.id, "active": self.active, "chain": self.chain}
+
+
+class User(db.Model):  # type: ignore
+    __tablename__ = "users"
+
+    email = db.Column(db.String(), primary_key=True)
+    password = db.Column(db.LargeBinary())
+
+    def set_password(self, password: bytes) -> None:
+        salt = bcrypt.gensalt(rounds=12)
+        self.password = bcrypt.hashpw(password, salt)
+
+    def check_password(self, password: bytes) -> bool:
+        return bcrypt.checkpw(password, self.password)

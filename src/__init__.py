@@ -8,6 +8,7 @@ from sanic import Sanic, response
 from sanic.log import logger
 from sanic_cors import CORS
 from sanic_jsonrpc import SanicJsonrpc
+from sanic_jwt import Initialize, protected
 from sanic_session import InMemorySessionInterface
 
 from src.config import config
@@ -16,7 +17,7 @@ from src.models.schema import chain, contract_oracle
 from src.network import chains
 from src.pql.exceptions import PqlDecodingError
 from src.pql.parser import parse_and_execute
-from src.utils.server import validate_request
+from src.utils.server import authenticate, validate_request
 
 
 def create_app(args={}) -> Sanic:  # noqa: C901
@@ -25,6 +26,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
 
     jsonrpc = SanicJsonrpc(app, post_route="/rpc", ws_route="/ws")
     CORS(app)
+    Initialize(app, authenticate=authenticate)
 
     if app.config["ENABLE_DATABASE"]:
         db.init_app(app)
@@ -38,6 +40,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
         asyncio.get_event_loop().run_until_complete(start_collecting(chains))
 
     @jsonrpc
+    @protected()
     async def execute_pql(pql_json: str) -> str:
         """Execute PQL definition `pql_json` and return result.
 
@@ -56,6 +59,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
         return res
 
     @jsonrpc
+    @protected()
     async def execute_ipfs(ipfs_address: str, ipfs_hash: str) -> str:
         """Execute PQL definition located in IPFS.
 
@@ -107,6 +111,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
         await session.save(request, response)
 
     @app.route("/api/ipfs")
+    @protected()
     async def api_ipfs_list(request):
         """Lists local IPFS hashes.
 
@@ -120,6 +125,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
         return response.json({"hashes": hashes})
 
     @app.route("api/ipfs/<ipfs_hash>")
+    @protected()
     async def api_ipfs_hash(request, ipfs_hash: str):
         """Get PQL contents in `ipfs_hash`, return error if not valid PQL.
 
@@ -146,6 +152,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
             return response.json({"error": "Not a file."}, status=400)
 
     @app.post("/api/test_pql")
+    @protected()
     async def test_pql(request):
         """Runs given PQL JSON `request` and returns result.
 
@@ -164,6 +171,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
                 return response.json({"error": str(e)})
 
     @app.post("/api/save_pql")
+    @protected()
     async def save_pql(request):
         """Saves given JSON `request` and returns successful JSON.
 
@@ -183,6 +191,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
             return response.json({"error": e.message})
 
     @app.post("/add_contract_oracle")
+    @protected()
     async def add_contract_oracle(request):
         """Adds a contract to be tracked by the node.
 
@@ -199,6 +208,7 @@ def create_app(args={}) -> Sanic:  # noqa: C901
         return response.json({"result": "ok"})
 
     @app.post("/add_chain")
+    @protected()
     async def add_chain(request):
         """Adds chain information to the database.
 

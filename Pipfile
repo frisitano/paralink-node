@@ -43,6 +43,8 @@ pydocstyle = "*"
 jsonschema = "*"
 substrate-interface = "==0.11.10"
 sanic-cors = "*"
+bcrypt = "*"
+sanic-jwt = "*"
 
 [requires]
 python_version = "3.8"
